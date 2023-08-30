@@ -1,0 +1,2570 @@
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.edge.options import Options
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from openpyxl.styles import PatternFill
+from openpyxl import load_workbook
+from selenium import webdriver
+from datetime import datetime
+from openpyxl import Workbook
+from copy import copy
+import pandas as pd
+import threading
+import openpyxl
+import time
+import os
+import wx
+#====LOG====
+output_buffer = ""
+def custom_print(*args, **kwargs):
+    global output_buffer
+    end = kwargs.get('end', '\n')
+    sep = kwargs.get('sep', ' ')
+    output = sep.join(str(arg) for arg in args) + end
+    output_buffer += output
+print = custom_print
+def dataAtual():
+    data_atual = datetime.now()
+    dia = data_atual.day
+    mes = data_atual.month
+    ano = data_atual.year
+    hora = data_atual.hour
+    minuto = data_atual.minute
+    data_formatada = "{:02d}/{:02d}/{:04d} ({:02d}:{:02d})".format(dia, mes, ano, hora, minuto)
+    return data_formatada
+print('Programa iniciado', dataAtual())
+#====LOG====
+class Tela_1(wx.Frame):
+    def __init__(self, parent, id, title):
+        super(Tela_1, self).__init__(parent, id, title=title, size=(700, 700))
+        self.painel = wx.Panel(self)
+        #Imagem da **********
+        self.painel.SetBackgroundColour(wx.Colour(0, 165, 229))
+        icone_********** = wx.Image('export\\icon**********.png', wx.BITMAP_TYPE_ANY)
+        bitmap = wx.Bitmap(icone_**********)
+        image_widget = wx.StaticBitmap(self.painel, bitmap=bitmap)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.AddStretchSpacer()
+        sizer.Add(image_widget, 0, wx.ALIGN_CENTER)
+        sizer.AddStretchSpacer()
+        texto = wx.Font(14, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        #Imagem da **********
+        self.criador = wx.StaticText(self.painel, label="Criado por Vinicius Kairof\nvkairof.eficien@**********.com.br",style=wx.TE_MULTILINE | wx.TE_READONLY)
+        texto_login = wx.StaticText(self.painel, label="Login")
+        texto_login.SetFont(texto)
+        sizer.Add(texto_login, proportion=0, flag=wx.ALIGN_CENTER | wx.ALL, border=3)
+        self.per_login = wx.TextCtrl(self.painel,id=wx.ID_ANY, size=(-1, 30), style=wx.TE_PROCESS_ENTER)
+        sizer.Add(self.per_login, proportion=0, flag=wx.ALIGN_CENTER | wx.ALL, border=10)
+        #pergunta de login
+        #pergunta de senha
+        texto_senha = wx.StaticText(self.painel, label="Senha")
+        sizer.Add(texto_senha, proportion=0, flag=wx.ALIGN_CENTER | wx.ALL, border=3)
+        texto_senha.SetFont(texto)
+        self.per_senha = wx.TextCtrl(self.painel,id=wx.ID_ANY, size=(-1, 30), style=wx.TE_PASSWORD)
+        sizer.Add(self.per_senha, proportion=0, flag=wx.ALIGN_CENTER | wx.ALL, border=10)
+        #pergunta de senha
+        self.button = wx.Button(self.painel, label="Enviar", size=(100, -1))
+        self.button.Bind(wx.EVT_BUTTON, self.on_enviar)
+        sizer.Add(self.button, 0, wx.ALIGN_CENTER | wx.ALL, border=10)
+        self.painel.SetSizer(sizer)
+    def on_enviar(self, event):
+        self.button.Disable()
+        valor_login = self.per_login.GetValue()
+        valor_senha = self.per_senha.GetValue()
+        self.button.SetLabel('Carregando...')
+        login_thread = threading.Thread(target=self.botao_tela_1, args=(valor_login, valor_senha))
+        login_thread.start() 
+    def botao_tela_1(self, valor_login, valor_senha):
+        nome_do_usuario = self.funcao_verificar_login(valor_login, valor_senha)
+        if nome_do_usuario is not None:
+            self.arquivo_excel()
+            wx.CallAfter(self.volta_thread,nome_do_usuario,valor_login,valor_senha,functions='1')
+        else:
+            print('Tentativa de login',dataAtual(),'login:',valor_login,'senha:',valor_senha)
+            self.mostrar_popup()
+            self.button.Enable()
+            self.button.SetLabel("Enviar")
+            return False
+    def funcao_verificar_login(self, T_login, T_senha):
+        edge_options = webdriver.EdgeOptions()
+        edge_options.add_argument("--headless")
+        edge_driver_path = "export\\msedgedriver.exe"
+        driver = webdriver.Edge(executable_path=edge_driver_path,options=edge_options)
+        wait = WebDriverWait(driver,600)
+        driver.get(**********)
+        txt_T_login = str(T_login)
+        txt_T_senha = str(T_senha)
+        dialogo_login = driver.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha = driver.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login = driver.find_element('id','**********').click()
+        try:
+            if (driver.find_element('id','**********').text == 'Credenciais de acesso não válidas'):
+                nome_do_usuario = None
+                return nome_do_usuario
+            else:
+                pass
+        except:
+            nome_do_usuario = wait.until(EC.element_to_be_clickable((By.ID,'**********'))).text
+            return nome_do_usuario
+        finally:
+            driver.quit()
+    def arquivo_excel(self):
+            nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+            if os.path.exists(nome_arquivo):
+                try:
+                    df = pd.read_excel(nome_arquivo)
+                    print("Arquivo encontrado e carregado com sucesso!")
+                    return df
+                except Exception as e:
+                    print(f"Erro ao carregar o arquivo: {e}")
+                    return None
+            else:
+                df = pd.DataFrame()
+                try:
+                    df.to_excel(nome_arquivo, index=False)
+                    print(f"Arquivo '{nome_arquivo}' criado com sucesso!")
+                    return df
+                except Exception as e:
+                    print(f"Erro ao criar o arquivo: {e}")
+                    return None
+    def mostrar_popup(event):
+        mensagem = "   Suas credenciais estão erradas!   "
+        dialog = wx.MessageDialog(frame, mensagem, "Credenciais", wx.OK | wx.ICON_INFORMATION)
+        dialog.ShowModal()
+        dialog.Hide()
+    def volta_thread(self,nome_do_usuario,valor_login,valor_senha,functions):
+        self.painel.DestroyChildren()
+        self.painel.SetBackgroundColour(wx.Colour(0, 165, 229))
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        titulo = wx.Font(22, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        texto = wx.Font(16, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        textinho = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        #bem-vindo
+        self.bemvindo = wx.StaticText(self.painel, label='Bem-vindo senhor:', pos=(10, 50))
+        sizer.Add(self.bemvindo, 0, wx.ALIGN_CENTER | wx.ALL, border=10)
+        self.login_text = wx.StaticText(self.painel, label=nome_do_usuario, pos=(10, 50))
+        sizer.Add(self.login_text, 0, wx.ALIGN_CENTER | wx.ALL, border=10)
+        self.bemvindo.SetFont(titulo)
+        self.login_text.SetFont(texto)
+        #bem-vindo
+        self.arquivo_cole_a_coluna_aqui_criado=wx.StaticText(self.painel, label='arquivo:cole_a_coluna_aqui. Criado com sucesso', pos=(10, 50))
+        sizer.Add(self.arquivo_cole_a_coluna_aqui_criado, 0, wx.ALIGN_CENTER | wx.ALL, border=10)
+        self.arquivo_cole_a_coluna_aqui_criado.SetFont(textinho)
+        
+        self.lembrete=wx.StaticText(self.painel, label='o arquivo, sempre ira pular a primeira linha', pos=(10, 50))
+        sizer.Add(self.lembrete, 0, wx.ALIGN_CENTER | wx.ALL, border=10)
+        self.lembrete.SetFont(textinho)
+
+        self.nessesario=wx.StaticText(self.painel, label='sera necessário o navegador:', pos=(10, 50))
+        sizer.Add(self.nessesario, 0, wx.ALIGN_CENTER | wx.ALL, border=10)
+        self.nessesario.SetFont(textinho)
+
+        self.lista_navegadores=wx.StaticText(self.painel, label='Microsoft Edge', pos=(10, 50),style=wx.TE_MULTILINE | wx.TE_READONLY)
+        sizer.Add(self.lista_navegadores, 0, wx.ALIGN_CENTER | wx.ALL, border=10)
+        self.lista_navegadores.SetFont(textinho)
+
+        self.lista_navegadores2=wx.StaticText(self.painel, label='Quantos navegadores gostaria de trabalhar?', pos=(10, 50),style=wx.TE_MULTILINE | wx.TE_READONLY)
+        sizer.Add(self.lista_navegadores2, 0, wx.ALIGN_CENTER | wx.ALL, border=10)
+
+        options = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"]
+        self.combobox = wx.ComboBox(self.painel, value=options[0],choices=options, style=wx.CB_DROPDOWN)
+        sizer.Add(self.combobox, 0, wx.ALIGN_CENTER | wx.ALL, border=10)
+        functions_ = {
+            "1": self.opcao_1,
+            "2": self.opcao_2,
+            "3": self.opcao_3,
+            "4": self.opcao_4,
+            "5": self.opcao_5,
+            "6": self.opcao_6,
+            "7": self.opcao_7,
+            "8": self.opcao_8,
+            "9": self.opcao_9,
+            "10": self.opcao_10,
+            "11": self.opcao_11,
+            "12": self.opcao_12,
+            "13": self.opcao_13,
+            "14": self.opcao_14,
+            "15": self.opcao_15,
+            "16": self.opcao_16,
+            "17": self.opcao_17,
+            "18": self.opcao_18,
+            "19": self.opcao_19,
+            "20": self.opcao_20,
+        }
+        self.functions = functions_
+        self.acao = wx.Button(self.painel, label="AÇÃO", pos=(10, 100))
+        sizer.Add(self.acao, 0, wx.ALIGN_CENTER | wx.ALL, border=10)
+        self.acao.Bind(wx.EVT_BUTTON, lambda event:self.on_enviar2(valor_login,valor_senha))
+
+        sizer.SetSizeHints(self.painel)
+        self.painel.SetSizerAndFit(sizer)
+        self.Layout() 
+    def verificar_primeira_coluna_preenchida(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        try:
+            df = pd.read_excel(nome_arquivo, header=None)
+            primeira_coluna_vazia = df[0].isnull().all()
+            if primeira_coluna_vazia:
+                return None
+            else:
+                return True
+        except:
+            return None
+    def mostrar_popup2(event):
+        mensagem = "   Prencha a primeira coluna do arquivo:cole_a_coluna_aqui    "
+        dialog = wx.MessageDialog(frame, mensagem, "Corrigir", wx.OK | wx.ICON_INFORMATION)
+        dialog.ShowModal()
+        dialog.Hide()
+    def on_enviar2(self,valor_login,valor_senha):
+        self.acao.Disable()
+        self.combobox.Disable()
+        self.acao.SetLabel('Carregando...')
+        verificasao = self.verificar_primeira_coluna_preenchida()
+        if verificasao==True:
+            selected_option = self.combobox.GetValue()
+            selected_function = self.functions.get(selected_option)
+            if selected_function:
+                selected_function(valor_login, valor_senha)
+                self.copiar_coluna_excel()
+                self.Destroy()
+        else:
+            self.mostrar_popup2()
+            self.acao.Enable()
+            self.combobox.Enable()
+            self.acao.SetLabel('AÇÃO')
+# opcao1 ao 20
+    def opcao_1(self,valor_login,valor_senha):
+        self.BD_para_1()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread1.start()
+        thread1.join()
+    def opcao_2(self,valor_login,valor_senha):
+        self.BD_para_2()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread1.start()
+        thread2.start()
+        thread1.join()
+        thread2.join()
+    def opcao_3(self,valor_login,valor_senha):
+        self.BD_para_3()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+    def opcao_4(self,valor_login,valor_senha):
+        self.BD_para_4()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+    def opcao_5(self,valor_login,valor_senha):
+        self.BD_para_5()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+    def opcao_6(self,valor_login,valor_senha):
+        self.BD_para_6()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+    def opcao_7(self,valor_login,valor_senha):
+        self.BD_para_7()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+    def opcao_8(self,valor_login,valor_senha):
+        self.BD_para_8()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread8 = threading.Thread(target=self.profileEDGE_8,args=(valor_login,valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread8.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+        thread8.join()
+    def opcao_9(self,valor_login,valor_senha):
+        self.BD_para_9()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread8 = threading.Thread(target=self.profileEDGE_8,args=(valor_login,valor_senha))
+        thread9 = threading.Thread(target=self.profileEDGE_9,args=(valor_login,valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread8.start()
+        thread9.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+        thread8.join()
+        thread9.join()
+    def opcao_10(self,valor_login,valor_senha):
+        self.BD_para_10()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread8 = threading.Thread(target=self.profileEDGE_8,args=(valor_login,valor_senha))
+        thread9 = threading.Thread(target=self.profileEDGE_9,args=(valor_login,valor_senha))
+        thread10 = threading.Thread(target=self.profileEDGE_10,args=(valor_login,valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread8.start()
+        thread9.start()
+        thread10.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+        thread8.join()
+        thread9.join()
+        thread10.join()
+    def opcao_11(self,valor_login,valor_senha):
+        self.BD_para_11()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread8 = threading.Thread(target=self.profileEDGE_8,args=(valor_login,valor_senha))
+        thread9 = threading.Thread(target=self.profileEDGE_9,args=(valor_login,valor_senha))
+        thread10 = threading.Thread(target=self.profileEDGE_10,args=(valor_login,valor_senha))
+        thread11 = threading.Thread(target=self.profileEDGE_11,args=(valor_login, valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread8.start()
+        thread9.start()
+        thread10.start()
+        thread11.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+        thread8.join()
+        thread9.join()
+        thread10.join()
+        thread11.join()
+    def opcao_12(self,valor_login,valor_senha):
+        self.BD_para_12()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread8 = threading.Thread(target=self.profileEDGE_8,args=(valor_login,valor_senha))
+        thread9 = threading.Thread(target=self.profileEDGE_9,args=(valor_login,valor_senha))
+        thread10 = threading.Thread(target=self.profileEDGE_10,args=(valor_login,valor_senha))
+        thread11 = threading.Thread(target=self.profileEDGE_11,args=(valor_login, valor_senha))
+        thread12 = threading.Thread(target=self.profileEDGE_12,args=(valor_login, valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread8.start()
+        thread9.start()
+        thread10.start()
+        thread11.start()
+        thread12.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+        thread8.join()
+        thread9.join()
+        thread10.join()
+        thread11.join()
+        thread12.join()
+    def opcao_13(self,valor_login,valor_senha):
+        self.BD_para_13()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread8 = threading.Thread(target=self.profileEDGE_8,args=(valor_login,valor_senha))
+        thread9 = threading.Thread(target=self.profileEDGE_9,args=(valor_login,valor_senha))
+        thread10 = threading.Thread(target=self.profileEDGE_10,args=(valor_login,valor_senha))
+        thread11 = threading.Thread(target=self.profileEDGE_11,args=(valor_login, valor_senha))
+        thread12 = threading.Thread(target=self.profileEDGE_12,args=(valor_login, valor_senha))
+        thread13 = threading.Thread(target=self.profileEDGE_13,args=(valor_login, valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread8.start()
+        thread9.start()
+        thread10.start()
+        thread11.start()
+        thread12.start()
+        thread13.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+        thread8.join()
+        thread9.join()
+        thread10.join()
+        thread11.join()
+        thread12.join()
+        thread13.join()
+    def opcao_14(self,valor_login,valor_senha):
+        self.BD_para_14()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread8 = threading.Thread(target=self.profileEDGE_8,args=(valor_login,valor_senha))
+        thread9 = threading.Thread(target=self.profileEDGE_9,args=(valor_login,valor_senha))
+        thread10 = threading.Thread(target=self.profileEDGE_10,args=(valor_login,valor_senha))
+        thread11 = threading.Thread(target=self.profileEDGE_11,args=(valor_login, valor_senha))
+        thread12 = threading.Thread(target=self.profileEDGE_12,args=(valor_login, valor_senha))
+        thread13 = threading.Thread(target=self.profileEDGE_13,args=(valor_login, valor_senha))
+        thread14 = threading.Thread(target=self.profileEDGE_14,args=(valor_login, valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread8.start()
+        thread9.start()
+        thread10.start()
+        thread11.start()
+        thread12.start()
+        thread13.start()
+        thread14.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+        thread8.join()
+        thread9.join()
+        thread10.join()
+        thread11.join()
+        thread12.join()
+        thread13.join()
+        thread14.join()
+    def opcao_15(self,valor_login,valor_senha):
+        self.BD_para_15()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread8 = threading.Thread(target=self.profileEDGE_8,args=(valor_login,valor_senha))
+        thread9 = threading.Thread(target=self.profileEDGE_9,args=(valor_login,valor_senha))
+        thread10 = threading.Thread(target=self.profileEDGE_10,args=(valor_login,valor_senha))
+        thread11 = threading.Thread(target=self.profileEDGE_11,args=(valor_login, valor_senha))
+        thread12 = threading.Thread(target=self.profileEDGE_12,args=(valor_login, valor_senha))
+        thread13 = threading.Thread(target=self.profileEDGE_13,args=(valor_login, valor_senha))
+        thread14 = threading.Thread(target=self.profileEDGE_14,args=(valor_login, valor_senha))
+        thread15 = threading.Thread(target=self.profileEDGE_15,args=(valor_login, valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread8.start()
+        thread9.start()
+        thread10.start()
+        thread11.start()
+        thread12.start()
+        thread13.start()
+        thread14.start()
+        thread15.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+        thread8.join()
+        thread9.join()
+        thread10.join()
+        thread11.join()
+        thread12.join()
+        thread13.join()
+        thread14.join()
+        thread15.join()
+    def opcao_16(self,valor_login,valor_senha):
+        self.BD_para_16()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread8 = threading.Thread(target=self.profileEDGE_8,args=(valor_login,valor_senha))
+        thread9 = threading.Thread(target=self.profileEDGE_9,args=(valor_login,valor_senha))
+        thread10 = threading.Thread(target=self.profileEDGE_10,args=(valor_login,valor_senha))
+        thread11 = threading.Thread(target=self.profileEDGE_11,args=(valor_login, valor_senha))
+        thread12 = threading.Thread(target=self.profileEDGE_12,args=(valor_login, valor_senha))
+        thread13 = threading.Thread(target=self.profileEDGE_13,args=(valor_login, valor_senha))
+        thread14 = threading.Thread(target=self.profileEDGE_14,args=(valor_login, valor_senha))
+        thread15 = threading.Thread(target=self.profileEDGE_15,args=(valor_login, valor_senha))
+        thread16 = threading.Thread(target=self.profileEDGE_16,args=(valor_login, valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread8.start()
+        thread9.start()
+        thread10.start()
+        thread11.start()
+        thread12.start()
+        thread13.start()
+        thread14.start()
+        thread15.start()
+        thread16.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+        thread8.join()
+        thread9.join()
+        thread10.join()
+        thread11.join()
+        thread12.join()
+        thread13.join()
+        thread14.join()
+        thread15.join()
+        thread16.join()
+    def opcao_17(self,valor_login,valor_senha):
+        self.BD_para_17()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread8 = threading.Thread(target=self.profileEDGE_8,args=(valor_login,valor_senha))
+        thread9 = threading.Thread(target=self.profileEDGE_9,args=(valor_login,valor_senha))
+        thread10 = threading.Thread(target=self.profileEDGE_10,args=(valor_login,valor_senha))
+        thread11 = threading.Thread(target=self.profileEDGE_11,args=(valor_login, valor_senha))
+        thread12 = threading.Thread(target=self.profileEDGE_12,args=(valor_login, valor_senha))
+        thread13 = threading.Thread(target=self.profileEDGE_13,args=(valor_login, valor_senha))
+        thread14 = threading.Thread(target=self.profileEDGE_14,args=(valor_login, valor_senha))
+        thread15 = threading.Thread(target=self.profileEDGE_15,args=(valor_login, valor_senha))
+        thread16 = threading.Thread(target=self.profileEDGE_16,args=(valor_login, valor_senha))
+        thread17 = threading.Thread(target=self.profileEDGE_17,args=(valor_login, valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread8.start()
+        thread9.start()
+        thread10.start()
+        thread11.start()
+        thread12.start()
+        thread13.start()
+        thread14.start()
+        thread15.start()
+        thread16.start()
+        thread17.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+        thread8.join()
+        thread9.join()
+        thread10.join()
+        thread11.join()
+        thread12.join()
+        thread13.join()
+        thread14.join()
+        thread15.join()
+        thread16.join()
+        thread17.join()
+    def opcao_18(self,valor_login,valor_senha):
+        self.BD_para_18()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread8 = threading.Thread(target=self.profileEDGE_8,args=(valor_login,valor_senha))
+        thread9 = threading.Thread(target=self.profileEDGE_9,args=(valor_login,valor_senha))
+        thread10 = threading.Thread(target=self.profileEDGE_10,args=(valor_login,valor_senha))
+        thread11 = threading.Thread(target=self.profileEDGE_11,args=(valor_login, valor_senha))
+        thread12 = threading.Thread(target=self.profileEDGE_12,args=(valor_login, valor_senha))
+        thread13 = threading.Thread(target=self.profileEDGE_13,args=(valor_login, valor_senha))
+        thread14 = threading.Thread(target=self.profileEDGE_14,args=(valor_login, valor_senha))
+        thread15 = threading.Thread(target=self.profileEDGE_15,args=(valor_login, valor_senha))
+        thread16 = threading.Thread(target=self.profileEDGE_16,args=(valor_login, valor_senha))
+        thread17 = threading.Thread(target=self.profileEDGE_17,args=(valor_login, valor_senha))
+        thread18 = threading.Thread(target=self.profileEDGE_18,args=(valor_login, valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread8.start()
+        thread9.start()
+        thread10.start()
+        thread11.start()
+        thread12.start()
+        thread13.start()
+        thread14.start()
+        thread15.start()
+        thread16.start()
+        thread17.start()
+        thread18.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+        thread8.join()
+        thread9.join()
+        thread10.join()
+        thread11.join()
+        thread12.join()
+        thread13.join()
+        thread14.join()
+        thread15.join()
+        thread16.join()
+        thread17.join()
+        thread18.join()
+    def opcao_19(self,valor_login,valor_senha):
+        self.BD_para_19()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread8 = threading.Thread(target=self.profileEDGE_8,args=(valor_login,valor_senha))
+        thread9 = threading.Thread(target=self.profileEDGE_9,args=(valor_login,valor_senha))
+        thread10 = threading.Thread(target=self.profileEDGE_10,args=(valor_login,valor_senha))
+        thread11 = threading.Thread(target=self.profileEDGE_11,args=(valor_login, valor_senha))
+        thread12 = threading.Thread(target=self.profileEDGE_12,args=(valor_login, valor_senha))
+        thread13 = threading.Thread(target=self.profileEDGE_13,args=(valor_login, valor_senha))
+        thread14 = threading.Thread(target=self.profileEDGE_14,args=(valor_login, valor_senha))
+        thread15 = threading.Thread(target=self.profileEDGE_15,args=(valor_login, valor_senha))
+        thread16 = threading.Thread(target=self.profileEDGE_16,args=(valor_login, valor_senha))
+        thread17 = threading.Thread(target=self.profileEDGE_17,args=(valor_login, valor_senha))
+        thread18 = threading.Thread(target=self.profileEDGE_18,args=(valor_login, valor_senha))
+        thread19 = threading.Thread(target=self.profileEDGE_19,args=(valor_login, valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread8.start()
+        thread9.start()
+        thread10.start()
+        thread11.start()
+        thread12.start()
+        thread13.start()
+        thread14.start()
+        thread15.start()
+        thread16.start()
+        thread17.start()
+        thread18.start()
+        thread19.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+        thread8.join()
+        thread9.join()
+        thread10.join()
+        thread11.join()
+        thread12.join()
+        thread13.join()
+        thread14.join()
+        thread15.join()
+        thread16.join()
+        thread17.join()
+        thread18.join()
+        thread19.join()
+    def opcao_20(self,valor_login,valor_senha):
+        self.BD_para_20()
+        time.sleep(2)
+        thread1 = threading.Thread(target=self.profileEDGE_1,args=(valor_login,valor_senha))
+        thread2 = threading.Thread(target=self.profileEDGE_2,args=(valor_login,valor_senha))
+        thread3 = threading.Thread(target=self.profileEDGE_3,args=(valor_login,valor_senha))
+        thread4 = threading.Thread(target=self.profileEDGE_4,args=(valor_login,valor_senha))
+        thread5 = threading.Thread(target=self.profileEDGE_5,args=(valor_login,valor_senha))
+        thread6 = threading.Thread(target=self.profileEDGE_6,args=(valor_login,valor_senha))
+        thread7 = threading.Thread(target=self.profileEDGE_7,args=(valor_login,valor_senha))
+        thread8 = threading.Thread(target=self.profileEDGE_8,args=(valor_login,valor_senha))
+        thread9 = threading.Thread(target=self.profileEDGE_9,args=(valor_login,valor_senha))
+        thread10 = threading.Thread(target=self.profileEDGE_10,args=(valor_login,valor_senha))
+        thread11 = threading.Thread(target=self.profileEDGE_11,args=(valor_login, valor_senha))
+        thread12 = threading.Thread(target=self.profileEDGE_12,args=(valor_login, valor_senha))
+        thread13 = threading.Thread(target=self.profileEDGE_13,args=(valor_login, valor_senha))
+        thread14 = threading.Thread(target=self.profileEDGE_14,args=(valor_login, valor_senha))
+        thread15 = threading.Thread(target=self.profileEDGE_15,args=(valor_login, valor_senha))
+        thread16 = threading.Thread(target=self.profileEDGE_16,args=(valor_login, valor_senha))
+        thread17 = threading.Thread(target=self.profileEDGE_17,args=(valor_login, valor_senha))
+        thread18 = threading.Thread(target=self.profileEDGE_18,args=(valor_login, valor_senha))
+        thread19 = threading.Thread(target=self.profileEDGE_19,args=(valor_login, valor_senha))
+        thread20 = threading.Thread(target=self.profileEDGE_20,args=(valor_login, valor_senha))
+        thread1.start()
+        thread2.start()
+        thread3.start()
+        thread4.start()
+        thread5.start()
+        thread6.start()
+        thread7.start()
+        thread8.start()
+        thread9.start()
+        thread10.start()
+        thread11.start()
+        thread12.start()
+        thread13.start()
+        thread14.start()
+        thread15.start()
+        thread16.start()
+        thread17.start()
+        thread18.start()
+        thread19.start()
+        thread20.start()
+        thread1.join()
+        thread2.join()
+        thread3.join()
+        thread4.join()
+        thread5.join()
+        thread6.join()
+        thread7.join()
+        thread8.join()
+        thread9.join()
+        thread10.join()
+        thread11.join()
+        thread12.join()
+        thread13.join()
+        thread14.join()
+        thread15.join()
+        thread16.join()
+        thread17.join()
+        thread18.join()
+        thread19.join()
+        thread20.join()
+# opcao1 ao 20
+
+# BD_PARA_1 ao 20
+    def BD_para_1(self):
+        arquivo_origem = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(arquivo_origem, skiprows=1)
+        arquivo_destino = "export\\profileEDGE1.xlsx"
+        df.to_excel(arquivo_destino, index=False)
+    def BD_para_2(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        meio = len(df) // 2
+        grupo1 = df.iloc[:meio]
+        grupo2 = df.iloc[meio:]
+        nome_saida1 = "export\\profileEDGE1.xlsx"
+        nome_saida2 = "export\\profileEDGE2.xlsx"
+        grupo1.to_excel(nome_saida1, index=False, header=False)
+        grupo2.to_excel(nome_saida2, index=False, header=False)
+    def BD_para_3(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 3
+        for i in range(3):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 2:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_4(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 4
+        
+        for i in range(4):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            
+            grupo = df.iloc[inicio:fim]
+            if i == 3:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+                
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_5(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 5
+        for i in range(5):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 4:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_6(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 6
+        for i in range(6):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 5:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_7(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 7
+        for i in range(7):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 6:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_8(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 8
+        for i in range(8):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 7:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_9(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 9
+        for i in range(9):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 8:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_10(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 10
+        for i in range(10):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 9:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_11(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 11
+        for i in range(11):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 10:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_12(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 12
+        for i in range(12):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 11:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_13(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 13
+        for i in range(13):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 12:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_14(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 14
+        for i in range(14):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 13:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_15(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 15
+        for i in range(15):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 14:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_16(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 16
+        for i in range(16):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 15:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_17(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 17
+        for i in range(17):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 16:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_18(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 18
+        for i in range(18):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 17:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_19(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 19
+        for i in range(19):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 18:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+    def BD_para_20(self):
+        nome_arquivo = "export\\Cole_a_coluna_aqui.xlsx"
+        df = pd.read_excel(nome_arquivo, header=None, names=['valores'], skiprows=1)
+        linhas_por_bd = len(df) // 20
+        for i in range(20):
+            inicio = i * linhas_por_bd
+            fim = inicio + linhas_por_bd
+            grupo = df.iloc[inicio:fim]
+            if i == 19:
+                sobra = df.iloc[fim:]
+                grupo = pd.concat([grupo, sobra])
+            nome_saida = f"export\\profileEDGE{i+1}.xlsx"
+            grupo.to_excel(nome_saida, index=False, header=False)
+# BD_PARA_1 ao 20
+
+#Profile1 ao 20
+    def pintar_celula(self,celula, cor):
+        celula.fill = cor
+    def profileEDGE_1(self,T_login,T_senha):
+        EDGEperfil1=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver1 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil1)
+        wait = WebDriverWait(driver1,600)
+        driver1.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver1.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver1.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver1.find_element('id','**********').click()
+        file_path='export\\profileEDGE1.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual=ws.cell(row=index + 1, column=1)
+            if celula_atual.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver1.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver1.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver1.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver1.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver1.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver1.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE1.xlsx")
+        driver1.quit()
+        return True
+    def profileEDGE_2(self,T_login,T_senha):
+        EDGEperfil2=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver2 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil2)
+        wait = WebDriverWait(driver2,600)
+        driver2.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver2.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver2.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver2.find_element('id','**********').click()
+        file_path='export\\profileEDGE2.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual2=ws.cell(row=index + 1, column=1)
+            if celula_atual2.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver2.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver2.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver2.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver2.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver2.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver2.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual2.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual2.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual2.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE2.xlsx")
+        driver2.quit()
+        return True
+    def profileEDGE_3(self,T_login,T_senha):
+        EDGEperfil3=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver3 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil3)
+        wait = WebDriverWait(driver3,600)
+        driver3.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver3.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver3.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver3.find_element('id','**********').click()
+        file_path='export\\profileEDGE3.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual3=ws.cell(row=index + 1, column=1)
+            if celula_atual3.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver3.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver3.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver3.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver3.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver3.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver3.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual3.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual3.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual3.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE3.xlsx")
+        driver3.quit()
+        return True
+    def profileEDGE_4(self,T_login,T_senha):
+        EDGEperfil4=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver4 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil4)
+        wait = WebDriverWait(driver4,600)
+        driver4.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver4.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver4.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver4.find_element('id','**********').click()
+        file_path='export\\profileEDGE4.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual4=ws.cell(row=index + 1, column=1)
+            if celula_atual4.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver4.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver4.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver4.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver4.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver4.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver4.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual4.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual4.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual4.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE4.xlsx")
+        driver4.quit()
+        return True
+    def profileEDGE_5(self,T_login,T_senha):
+        EDGEperfil5=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver5 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil5)
+        wait = WebDriverWait(driver5,600)
+        driver5.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver5.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver5.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver5.find_element('id','**********').click()
+        file_path='export\\profileEDGE5.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual5=ws.cell(row=index + 1, column=1)
+            if celula_atual5.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver5.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver5.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver5.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver5.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver5.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver5.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual5.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual5.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual5.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE5.xlsx")
+        driver5.quit()
+        return True
+    def profileEDGE_6(self,T_login,T_senha):
+        EDGEperfil6=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver6 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil6)
+        wait = WebDriverWait(driver6,600)
+        driver6.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver6.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver6.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver6.find_element('id','**********').click()
+        file_path='export\\profileEDGE6.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual6=ws.cell(row=index + 1, column=1)
+            if celula_atual6.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver6.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver6.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver6.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver6.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver6.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver6.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual6.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual6.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual6.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE6.xlsx")
+        driver6.quit()
+        return True
+    def profileEDGE_7(self,T_login,T_senha):
+        EDGEperfil7=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver7 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil7)
+        wait = WebDriverWait(driver7,600)
+        driver7.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver7.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver7.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver7.find_element('id','**********').click()
+        file_path='export\\profileEDGE7.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual7=ws.cell(row=index + 1, column=1)
+            if celula_atual7.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver7.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver7.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver7.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver7.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver7.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver7.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual7.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual7.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual7.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE7.xlsx")
+        driver7.quit()
+        return True
+    def profileEDGE_8(self,T_login,T_senha):
+        EDGEperfil8=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver8 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil8)
+        wait = WebDriverWait(driver8,600)
+        driver8.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver8.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver8.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver8.find_element('id','**********').click()
+        file_path='export\\profileEDGE8.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual8=ws.cell(row=index + 1, column=1)
+            if celula_atual8.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver8.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver8.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver8.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver8.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver8.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver8.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual8.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual8.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual8.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE8.xlsx")
+        driver8.quit()
+        return True
+    def profileEDGE_9(self,T_login,T_senha):
+        EDGEperfil9=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver9 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil9)
+        wait = WebDriverWait(driver9,600)
+        driver9.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver9.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver9.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver9.find_element('id','**********').click()
+        file_path='export\\profileEDGE9.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual9=ws.cell(row=index + 1, column=1)
+            if celula_atual9.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver9.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver9.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver9.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver9.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver9.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver9.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual9.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual9.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual9.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE9.xlsx")
+        driver9.quit()
+        return True
+    def profileEDGE_10(self,T_login,T_senha):
+        EDGEperfil10=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver10 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil10)
+        wait = WebDriverWait(driver10,600)
+        driver10.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver10.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver10.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver10.find_element('id','**********').click()
+        file_path='export\\profileEDGE10.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual10=ws.cell(row=index + 1, column=1)
+            if celula_atual10.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver10.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver10.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver10.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver10.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver10.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver10.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual10.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual10.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual10.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE10.xlsx")
+        driver10.quit()
+        return True
+    def profileEDGE_11(self,T_login,T_senha):
+        EDGEperfil11=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver11 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil11)
+        wait = WebDriverWait(driver11,600)
+        driver11.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver11.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver11.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver11.find_element('id','**********').click()
+        file_path='export\\profileEDGE11.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual11=ws.cell(row=index + 1, column=1)
+            if celula_atual11.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver11.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver11.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver11.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver11.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver11.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver11.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual11.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual11.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual11.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE11.xlsx")
+        driver11.quit()
+        return True
+    def profileEDGE_12(self,T_login,T_senha):
+        EDGEperfil12=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver12 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil12)
+        wait = WebDriverWait(driver12,600)
+        driver12.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver12.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver12.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver12.find_element('id','**********').click()
+        file_path='export\\profileEDGE12.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual12=ws.cell(row=index + 1, column=1)
+            if celula_atual12.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver12.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver12.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver12.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver12.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver12.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver12.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual12.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual12.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual12.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE12.xlsx")
+        driver12.quit()
+        return True
+    def profileEDGE_13(self,T_login,T_senha):
+        EDGEperfil13=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver13 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil13)
+        wait = WebDriverWait(driver13,600)
+        driver13.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver13.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver13.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver13.find_element('id','**********').click()
+        file_path='export\\profileEDGE13.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual13=ws.cell(row=index + 1, column=1)
+            if celula_atual13.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver13.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver13.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver13.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver13.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver13.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver13.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual13.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual13.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual13.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE13.xlsx")
+        driver13.quit()
+        return True
+    def profileEDGE_14(self,T_login,T_senha):
+        EDGEperfil14=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver14 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil14)
+        wait = WebDriverWait(driver14,600)
+        driver14.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver14.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver14.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver14.find_element('id','**********').click()
+        file_path='export\\profileEDGE14.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual14=ws.cell(row=index + 1, column=1)
+            if celula_atual14.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver14.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver14.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver14.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver14.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver14.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver14.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual14.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual14.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual14.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE14.xlsx")
+        driver14.quit()
+        return True
+    def profileEDGE_15(self,T_login,T_senha):
+        EDGEperfil15=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver15 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil15)
+        wait = WebDriverWait(driver15,600)
+        driver15.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver15.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver15.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver15.find_element('id','**********').click()
+        file_path='export\\profileEDGE15.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual15=ws.cell(row=index + 1, column=1)
+            if celula_atual15.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver15.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver15.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver15.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver15.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver15.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver15.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual15.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual15.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual15.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE15.xlsx")
+        driver15.quit()
+        return True
+    def profileEDGE_16(self,T_login,T_senha):
+        EDGEperfil16=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver16 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil16)
+        wait = WebDriverWait(driver16,600)
+        driver16.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver16.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver16.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver16.find_element('id','**********').click()
+        file_path='export\\profileEDGE16.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual16=ws.cell(row=index + 1, column=1)
+            if celula_atual16.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver16.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver16.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver16.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver16.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver16.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver16.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual16.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual16.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual16.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE16.xlsx")
+        driver16.quit()
+        return True
+    def profileEDGE_17(self,T_login,T_senha):
+        EDGEperfil17=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver17 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil17)
+        wait = WebDriverWait(driver17,600)
+        driver17.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver17.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver17.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver17.find_element('id','**********').click()
+        file_path='export\\profileEDGE17.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual17=ws.cell(row=index + 1, column=1)
+            if celula_atual17.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver17.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver17.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver17.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver17.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver17.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver17.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual17.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual17.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual17.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE17.xlsx")
+        driver17.quit()
+        return True
+    def profileEDGE_18(self,T_login,T_senha):
+        EDGEperfil18=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver18 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil18)
+        wait = WebDriverWait(driver18,600)
+        driver18.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver18.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver18.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver18.find_element('id','**********').click()
+        file_path='export\\profileEDGE18.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual18=ws.cell(row=index + 1, column=1)
+            if celula_atual18.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver18.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver18.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver18.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver18.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver18.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver18.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual18.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual18.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual18.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE18.xlsx")
+        driver18.quit()
+        return True
+    def profileEDGE_19(self,T_login,T_senha):
+        EDGEperfil19=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver19 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil19)
+        wait = WebDriverWait(driver19,600)
+        driver19.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver19.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver19.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver19.find_element('id','**********').click()
+        file_path='export\\profileEDGE19.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual19=ws.cell(row=index + 1, column=1)
+            if celula_atual19.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver19.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver19.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver19.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver19.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver19.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver19.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual19.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual19.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual19.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE19.xlsx")
+        driver19.quit()
+        return True
+    def profileEDGE_20(self,T_login,T_senha):
+        EDGEperfil20=webdriver.EdgeOptions()
+        edge_driver_path="export\\msedgedriver.exe"
+        driver20 = webdriver.Edge(executable_path=edge_driver_path,options=EDGEperfil20)
+        wait = WebDriverWait(driver20,600)
+        driver20.get(**********)
+        txt_T_login=str(T_login)
+        txt_T_senha=str(T_senha)
+        dialogo_login=driver20.find_element('id','**********').send_keys(txt_T_login)
+        dialogo_senha=driver20.find_element('id','**********').send_keys(txt_T_senha)
+        botao_login=driver20.find_element('id','**********').click()
+        file_path='export\\profileEDGE20.xlsx'
+        df=pd.read_excel(file_path, header=None)
+        workbook=openpyxl.load_workbook(file_path)
+        ws=workbook.active
+        verde=PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        amarelo=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        vermelho=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+        for index,row in df.iterrows():
+            celula_atual20=ws.cell(row=index + 1, column=1)
+            if celula_atual20.fill.fill_type is None:
+                script_input=row[0]
+                str_script_input=str(script_input)
+                script="goToUrl(**********)"
+                driver20.execute_script(script)
+                dialogo_codigo=wait.until(EC.visibility_of_element_located((By.ID, '**********')))
+                dialogo_codigo.send_keys(str_script_input)
+                dialogo_codigo.send_keys(Keys.TAB)
+                botao_pesquisa=wait.until(EC.visibility_of_element_located((By.ID,'**********'))).click()
+                botao_check=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                em_curso=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).text
+                if em_curso=="EM CURSO":
+                    class_do_elemento=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).get_attribute("class")
+
+                    if class_do_elemento=="eventi_on":
+                        botao_evolui_estado=driver20.find_element('id','**********').click()
+                        espere=wait.until(EC.element_to_be_clickable((By.ID, "**********")))
+                        id_frame='**********'
+                        driver20.switch_to.frame(id_frame)
+                        botao_cancelar=wait.until(EC.visibility_of_element_located((By.ID, "**********")))
+                        elemento_seleto=Select(botao_cancelar)
+                        elemento_seleto.select_by_index(1)
+                        try:
+                            botao_confirmar=wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar = driver20.find_element('name','**********').click()
+                        except:
+                            pass
+                        try:
+                            botao_confirmar2 = driver20.find_element('id', '**********').click()
+                        except:
+                            pass
+                        driver20.switch_to.default_content()
+                        ok = wait.until(EC.visibility_of_element_located((By.ID, "**********"))).click()
+                        celula_atual20.fill=verde
+                        print(f'Celula={script_input} Cancelada')
+                    else:
+                        celula_atual20.fill=amarelo
+                        print(f'Celula={script_input} esta com inconsistencia')
+                else:
+                    celula_atual20.fill=vermelho
+                    print(f'Celula={script_input} esta fora de Em Curso')
+        workbook.save("export\\profileEDGE20.xlsx")
+        driver20.quit()
+        return True
+
+#Profile1 ao 20
+    def copiar_coluna_excel(self):
+        input_files = [
+            "export\\profileEDGE1.xlsx", "export\\profileEDGE2.xlsx", "export\\profileEDGE3.xlsx", "export\\profileEDGE4.xlsx", "export\\profileEDGE5.xlsx",
+            "export\\profileEDGE6.xlsx", "export\\profileEDGE7.xlsx", "export\\profileEDGE8.xlsx", "export\\profileEDGE9.xlsx", "export\\profileEDGE10.xlsx",
+            "export\\profileEDGE11.xlsx", "export\\profileEDGE12.xlsx", "export\\profileEDGE13.xlsx", "export\\profileEDGE14.xlsx", "export\\profileEDGE15.xlsx",
+            "export\\profileEDGE16.xlsx", "export\\profileEDGE17.xlsx", "export\\profileEDGE18.xlsx", "export\\profileEDGE19.xlsx", "export\\profileEDGE20.xlsx"
+        ]
+        existing_files = []
+        for file in input_files:
+            if os.path.exists(file):
+                existing_files.append(file)
+        if existing_files:
+            wb_result = Workbook()
+            ws_result = wb_result.active
+            for file in existing_files:
+                wb = load_workbook(file)
+                ws = wb.active
+                for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=1):
+                    cell = row[0]
+                    ws_result.append([cell.value])
+                    if cell.fill:
+                        fill = PatternFill(start_color=cell.fill.start_color.rgb, end_color=cell.fill.end_color.rgb, fill_type="solid")
+                        ws_result.cell(row=ws_result.max_row, column=1).fill = fill
+                wb.close()
+            wb_result.save("resultado.xlsx")
+            wb_result.close()
+            for file in existing_files:
+                os.remove(file)
+            print("Arquivos processados e excluídos com sucesso.")
+        else:
+            print("Nenhum arquivo encontrado.")
+
+app = wx.App(False)
+frame = Tela_1(None, -1,"Macro de Cancelamento")
+frame.Show()
+app.MainLoop()
+#====LOG====
+print('Programa finalizado', dataAtual())
+with open('export\\bloco_de_notas.txt', 'w') as file:
+    file.write(output_buffer)
+#====LOG====
